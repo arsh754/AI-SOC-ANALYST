@@ -1,4 +1,5 @@
 from backend.event_model import SecurityEvent
+from backend.alert_model import SecurityAlert
 
 from detections.brute_force import detect_brute_force
 from detections.suspicious_process import detect_suspicious_process
@@ -6,24 +7,27 @@ from detections.file_activity import detect_suspicious_file_activity
 from detections.privilege_escalation import detect_privilege_escalation
 
 
-def run_detections(events: list[SecurityEvent]) -> list[dict]:
+def run_detections(
+    events: list[SecurityEvent],
+) -> list[SecurityAlert]:
     """
-    Run all security detection rules against a collection of events.
+    Run all security detection rules against a collection
+    of SecurityEvent objects.
 
-    The Detection Engine acts as the central coordinator.
-    Each specialized detection rule analyzes the same
-    collection of SecurityEvent objects.
+    Each detection rule analyzes the events and returns
+    standardized SecurityAlert objects.
 
-    All generated alerts are combined into one list.
+    The Detection Engine combines all alerts into one list.
     """
 
-    alerts = []
+    alerts: list[SecurityAlert] = []
 
     # ---------------------------------------------------------
     # 1. Brute-force authentication detection
     # ---------------------------------------------------------
 
     brute_force_alerts = detect_brute_force(events)
+
     alerts.extend(brute_force_alerts)
 
     # ---------------------------------------------------------
@@ -31,20 +35,23 @@ def run_detections(events: list[SecurityEvent]) -> list[dict]:
     # ---------------------------------------------------------
 
     suspicious_process_alerts = detect_suspicious_process(events)
+
     alerts.extend(suspicious_process_alerts)
 
     # ---------------------------------------------------------
     # 3. Suspicious file activity detection
     # ---------------------------------------------------------
 
-    suspicious_file_alerts = detect_suspicious_file_activity(events)
-    alerts.extend(suspicious_file_alerts)
+    file_activity_alerts = detect_suspicious_file_activity(events)
+
+    alerts.extend(file_activity_alerts)
 
     # ---------------------------------------------------------
     # 4. Privilege escalation detection
     # ---------------------------------------------------------
 
     privilege_escalation_alerts = detect_privilege_escalation(events)
+
     alerts.extend(privilege_escalation_alerts)
 
     return alerts

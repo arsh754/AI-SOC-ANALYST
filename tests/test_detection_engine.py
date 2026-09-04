@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
 from backend.event_model import SecurityEvent
-from detections.detection_engine import detect_brute_force
+from backend.alert_model import SecurityAlert
+from detections.detection_engine import run_detections
 
 
 def create_failed_login(
@@ -18,14 +19,15 @@ def create_failed_login(
         action="login_failed",
         source="test",
         severity="medium",
-        username="admin",
+        username="testuser",
         source_ip=source_ip,
-        description="Failed authentication attempt",
-        subsystem="test",
+        description="Failed login attempt",
+        subsystem="authentication",
         category="authentication",
-        process_path="/test/process",
+        process_path=None,
+        file_path=None,
         message_type="Default",
-        raw_message="authentication failure for user admin",
+        raw_message="Failed login attempt",
     )
 
 
@@ -35,21 +37,30 @@ def test_detect_brute_force():
 
     events = [
         create_failed_login(
-            f"event-{number}",
-            "192.168.1.50",
-            start_time + timedelta(seconds=number * 30),
+            event_id=f"login-{number}",
+            source_ip="192.168.1.50",
+            timestamp=start_time + timedelta(
+                seconds=number * 30
+            ),
         )
         for number in range(5)
     ]
 
-    alerts = detect_brute_force(events)
+    alerts = run_detections(events)
 
     assert len(alerts) == 1
 
-    assert alerts[0]["rule"] == "BRUTE_FORCE_AUTH"
-    assert alerts[0]["severity"] == "high"
-    assert alerts[0]["source_ip"] == "192.168.1.50"
-    assert alerts[0]["event_count"] == 5
+    alert = alerts[0]
+
+    assert isinstance(alert, SecurityAlert)
+
+    assert alert.attack_type == "Brute Force"
+    assert alert.category == "Authentication"
+    assert alert.severity == "high"
+    assert alert.detection_rule == "BRUTE_FORCE_AUTH"
+
+    assert alert.source_ip == "192.168.1.50"
+    assert alert.event_count == 5
 
 
 def test_no_brute_force_with_few_attempts():
@@ -58,13 +69,15 @@ def test_no_brute_force_with_few_attempts():
 
     events = [
         create_failed_login(
-            f"event-{number}",
-            "192.168.1.50",
-            start_time + timedelta(seconds=number * 30),
+            event_id=f"login-{number}",
+            source_ip="192.168.1.50",
+            timestamp=start_time + timedelta(
+                seconds=number * 30
+            ),
         )
-        for number in range(3)
+        for number in range(4)
     ]
 
-    alerts = detect_brute_force(events)
+    alerts = run_detections(events)
 
     assert len(alerts) == 0

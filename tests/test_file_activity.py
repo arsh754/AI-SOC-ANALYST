@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from backend.event_model import SecurityEvent
+from backend.alert_model import SecurityAlert
 from detections.file_activity import detect_suspicious_file_activity
 
 
@@ -41,9 +42,22 @@ def test_suspicious_temp_file_detected():
     alerts = detect_suspicious_file_activity(events)
 
     assert len(alerts) == 1
-    assert alerts[0]["alert_type"] == "suspicious_file_activity"
-    assert alerts[0]["severity"] == "medium"
-    assert alerts[0]["file_path"] == "/tmp/payload.sh"
+
+    alert = alerts[0]
+
+    assert isinstance(alert, SecurityAlert)
+
+    assert alert.attack_type == "Suspicious File Activity"
+    assert alert.category == "File"
+    assert alert.severity == "medium"
+    assert alert.confidence == 0.80
+    assert alert.detection_rule == "SUSPICIOUS_FILE_ACTIVITY"
+
+    assert alert.file_path == "/tmp/payload.sh"
+    assert alert.host == "test-host"
+    assert alert.username == "testuser"
+
+    assert alert.source_event_ids == ["file-1"]
 
 
 def test_suspicious_extension_detected():
@@ -58,7 +72,14 @@ def test_suspicious_extension_detected():
     alerts = detect_suspicious_file_activity(events)
 
     assert len(alerts) == 1
-    assert alerts[0]["alert_type"] == "suspicious_file_activity"
+
+    alert = alerts[0]
+
+    assert isinstance(alert, SecurityAlert)
+
+    assert alert.attack_type == "Suspicious File Activity"
+    assert alert.category == "File"
+    assert alert.detection_rule == "SUSPICIOUS_FILE_ACTIVITY"
 
 
 def test_normal_file_not_detected():

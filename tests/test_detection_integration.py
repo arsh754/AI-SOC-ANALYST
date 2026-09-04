@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from backend.event_model import SecurityEvent
+from backend.alert_model import SecurityAlert
 from detections.detection_engine import run_detections
 
 
@@ -41,9 +42,10 @@ def test_detection_engine_runs_all_detection_rules():
     events = []
 
     # ---------------------------------------------------------
-    # 1. Create five failed login attempts.
+    # 1. Five failed login attempts.
     #
-    # These should trigger the brute-force detector.
+    # Expected:
+    # BRUTE FORCE
     # ---------------------------------------------------------
 
     for i in range(5):
@@ -59,9 +61,10 @@ def test_detection_engine_runs_all_detection_rules():
         )
 
     # ---------------------------------------------------------
-    # 2. Create a suspicious process event.
+    # 2. Suspicious process.
     #
-    # This should trigger the suspicious-process detector.
+    # Expected:
+    # SUSPICIOUS PROCESS
     # ---------------------------------------------------------
 
     events.append(
@@ -75,9 +78,10 @@ def test_detection_engine_runs_all_detection_rules():
     )
 
     # ---------------------------------------------------------
-    # 3. Create suspicious file activity.
+    # 3. Suspicious file activity.
     #
-    # This should trigger the file-activity detector.
+    # Expected:
+    # SUSPICIOUS FILE ACTIVITY
     # ---------------------------------------------------------
 
     events.append(
@@ -91,9 +95,10 @@ def test_detection_engine_runs_all_detection_rules():
     )
 
     # ---------------------------------------------------------
-    # 4. Create privilege-related process activity.
+    # 4. Privilege escalation activity.
     #
-    # This should trigger the privilege-escalation detector.
+    # Expected:
+    # PRIVILEGE ESCALATION
     # ---------------------------------------------------------
 
     events.append(
@@ -113,21 +118,34 @@ def test_detection_engine_runs_all_detection_rules():
     alerts = run_detections(events)
 
     # ---------------------------------------------------------
-    # Verify that alerts were generated.
+    # Verify that every returned result is a SecurityAlert.
     # ---------------------------------------------------------
 
-    alert_types = {
-        alert["alert_type"]
+    assert all(
+        isinstance(alert, SecurityAlert)
+        for alert in alerts
+    )
+
+    # ---------------------------------------------------------
+    # Extract attack types from the SecurityAlert objects.
+    # ---------------------------------------------------------
+
+    attack_types = {
+        alert.attack_type
         for alert in alerts
     }
 
-    # All four detection capabilities should have
-    # generated an alert.
-    assert "brute_force" in alert_types
-    assert "suspicious_process" in alert_types
-    assert "suspicious_file_activity" in alert_types
-    assert "privilege_escalation" in alert_types
+    # ---------------------------------------------------------
+    # Verify all four detection capabilities fired.
+    # ---------------------------------------------------------
 
-    # We expect exactly four alerts in this controlled
-    # test scenario.
+    assert "Brute Force" in attack_types
+    assert "Suspicious Process" in attack_types
+    assert "Suspicious File Activity" in attack_types
+    assert "Privilege Escalation" in attack_types
+
+    # ---------------------------------------------------------
+    # Exactly four alerts should be generated.
+    # ---------------------------------------------------------
+
     assert len(alerts) == 4

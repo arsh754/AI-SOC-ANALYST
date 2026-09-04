@@ -1,6 +1,8 @@
 from pathlib import Path
+from uuid import uuid4
 
 from backend.event_model import SecurityEvent
+from backend.alert_model import SecurityAlert
 
 
 PRIVILEGE_PROCESSES = [
@@ -12,7 +14,7 @@ PRIVILEGE_PROCESSES = [
 
 def detect_privilege_escalation(
     events: list[SecurityEvent],
-) -> list[dict]:
+) -> list[SecurityAlert]:
     """
     Detect potentially suspicious privilege escalation activity.
 
@@ -29,7 +31,7 @@ def detect_privilege_escalation(
 
     for event in events:
 
-        # We are interested in process execution events.
+        # Only analyze process execution events.
         if event.event_type != "process":
             continue
 
@@ -38,7 +40,7 @@ def detect_privilege_escalation(
         if not process_path:
             continue
 
-        # Extract only the executable name.
+        # Extract the executable name.
         #
         # Example:
         # /usr/bin/sudo
@@ -50,16 +52,26 @@ def detect_privilege_escalation(
         if process_name not in PRIVILEGE_PROCESSES:
             continue
 
-        alerts.append({
-            "alert_type": "privilege_escalation",
-            "severity": "high",
-            "process": process_name,
-            "host": event.host,
-            "username": event.username,
-            "description": (
-                f"Potential privilege escalation activity detected "
-                f"through {process_name}."
+        # Create the standardized SOC alert.
+        alert = SecurityAlert(
+            alert_id=f"ALT-{uuid4().hex[:8].upper()}",
+            attack_type="Privilege Escalation",
+            category="Privilege",
+            severity="high",
+            confidence=0.85,
+            detection_rule="PRIVILEGE_ESCALATION",
+            description=(
+                f"Potential privilege escalation activity "
+                f"detected through {process_name}."
             ),
-        })
+            host=event.host,
+            username=event.username,
+            process=process_name,
+            source_event_ids=[
+                event.event_id
+            ],
+        )
+
+        alerts.append(alert)
 
     return alerts
