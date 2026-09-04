@@ -1,29 +1,37 @@
 from datetime import datetime
+
 from pydantic import BaseModel
 
 
 class SecurityEvent(BaseModel):
-    # Basic event information
+    """
+    Standard security event used throughout the AI SOC Analyst.
+
+    Every collector, parser, classifier, detection rule,
+    correlation engine, and future AI component will work
+    with this common event structure.
+    """
+
     event_id: str
     timestamp: datetime
+
     host: str
 
-    # Security classification
     event_type: str
     action: str
     source: str
     severity: str
 
-    # Identity and network information
     username: str | None = None
     source_ip: str | None = None
 
-    # Human-readable information
-    description: str | None = None
+    description: str
 
-    # Original macOS telemetry
     subsystem: str | None = None
     category: str | None = None
+
     process_path: str | None = None
+    file_path: str | None = None
+
     message_type: str | None = None
-    raw_message: str | None = None
+    raw_message: str

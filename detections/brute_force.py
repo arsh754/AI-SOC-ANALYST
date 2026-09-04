@@ -1,24 +1,29 @@
 from datetime import timedelta
 from collections import defaultdict
+from uuid import uuid4
 
 from backend.event_model import SecurityEvent
+from backend.alert_model import SecurityAlert
 
 
 def detect_brute_force(
     events: list[SecurityEvent],
     threshold: int = 5,
-    window_minutes: int = 5
-) -> list[dict]:
+    window_minutes: int = 5,
+) -> list[SecurityAlert]:
     """
-    Detect possible brute-force login attacks.
+    Detect possible brute-force authentication activity.
 
     A brute-force alert is generated when the same source IP
     produces multiple failed login attempts within a short
-    time window.
+    period of time.
     """
 
-    # Group failed login events by source IP
     failed_logins = defaultdict(list)
+
+    # ---------------------------------------------------------
+    # Collect failed login events by source IP.
+    # ---------------------------------------------------------
 
     for event in events:
 
@@ -30,11 +35,15 @@ def detect_brute_force(
 
     alerts = []
 
-    # Analyze each source IP
+    # ---------------------------------------------------------
+    # Analyze the failed logins from each source IP.
+    # ---------------------------------------------------------
+
     for source_ip, login_events in failed_logins.items():
 
-        # Sort events chronologically
-        login_events.sort(key=lambda event: event.timestamp)
+        login_events.sort(
+            key=lambda event: event.timestamp
+        )
 
         for i in range(len(login_events)):
 
@@ -50,23 +59,40 @@ def detect_brute_force(
                 if event.timestamp <= window_end
             ]
 
-            if len(attempts) >= threshold:
+            if len(attempts) < threshold:
+                continue
 
-                alerts.append({
-                    "rule": "BRUTE_FORCE_AUTH",
-                    "alert_type": "brute_force",
-                    "severity": "high",
-                    "source_ip": source_ip,
-                    "event_count": len(attempts),
-                    "failed_attempts": len(attempts),
-                    "window_minutes": window_minutes,
-                    "description": (
-                        f"Possible brute-force attack detected from "
-                        f"{source_ip}: {len(attempts)} failed login "
-                        f"attempts within {window_minutes} minutes."
-                    )
-                })
+            # -------------------------------------------------
+            # Create a standardized SecurityAlert.
+            # -------------------------------------------------
 
-                break
+            alert = SecurityAlert(
+                alert_id=f"ALT-{uuid4().hex[:8].upper()}",
+                attack_type="Brute Force",
+                category="Authentication",
+                severity="high",
+                confidence=0.90,
+                detection_rule="BRUTE_FORCE_AUTH",
+                description=(
+                    f"Possible brute-force authentication activity "
+                    f"detected from {source_ip}: "
+                    f"{len(attempts)} failed login attempts within "
+                    f"{window_minutes} minutes."
+                ),
+                host=attempts[0].host,
+                username=attempts[0].username,
+                source_ip=source_ip,
+                event_count=len(attempts),
+                source_event_ids=[
+                    event.event_id
+                    for event in attempts
+                ],
+            )
+
+            alerts.append(alert)
+
+            # Generate only one alert for this source IP
+            # during this detection run.
+            break
 
     return alerts
