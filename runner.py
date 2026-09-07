@@ -10,18 +10,6 @@ from detections.detection_engine import run_detections
 def run_soc_pipeline(minutes: int = 1):
     """
     Run the complete AI SOC Analyst telemetry pipeline.
-
-    Flow:
-
-        macOS logs
-            ↓
-        Parser
-            ↓
-        SecurityEvent
-            ↓
-        Detection Engine
-            ↓
-        Security Alerts
     """
 
     print()
@@ -31,23 +19,21 @@ def run_soc_pipeline(minutes: int = 1):
     print("=" * 60)
 
     # ---------------------------------------------------------
-    # 1. Collect raw macOS telemetry
+    # 1. Collect telemetry
     # ---------------------------------------------------------
 
     print("\n[1] Collecting macOS telemetry...")
 
     raw_logs = collect_macos_logs(minutes=minutes)
 
-    print(
-        f"    Raw events collected: {len(raw_logs)}"
-    )
+    print(f"    Raw events collected: {len(raw_logs)}")
 
     if not raw_logs:
         print("    No logs collected.")
         return
 
     # ---------------------------------------------------------
-    # 2. Parse raw logs into SecurityEvents
+    # 2. Parse telemetry
     # ---------------------------------------------------------
 
     print("\n[2] Parsing telemetry...")
@@ -55,7 +41,6 @@ def run_soc_pipeline(minutes: int = 1):
     security_events = []
 
     for raw_log in raw_logs:
-
         try:
             event = parse_log(raw_log)
             security_events.append(event)
@@ -71,7 +56,7 @@ def run_soc_pipeline(minutes: int = 1):
     )
 
     # ---------------------------------------------------------
-    # 3. Summarize event classifications
+    # 3. Event classification summary
     # ---------------------------------------------------------
 
     print("\n[3] Event classification summary...")
@@ -82,15 +67,13 @@ def run_soc_pipeline(minutes: int = 1):
     )
 
     if event_types:
-
         for event_type, count in event_types.most_common():
-
             print(
                 f"    {event_type:<20} {count}"
             )
 
     # ---------------------------------------------------------
-    # 4. Run Detection Engine
+    # 4. Run detection engine
     # ---------------------------------------------------------
 
     print("\n[4] Running detection engine...")
@@ -102,11 +85,10 @@ def run_soc_pipeline(minutes: int = 1):
     )
 
     # ---------------------------------------------------------
-    # 5. Display alerts
+    # 5. Display security alerts
     # ---------------------------------------------------------
 
     print("\n[5] Security alerts")
-
     print("-" * 60)
 
     if not alerts:
@@ -117,36 +99,61 @@ def run_soc_pipeline(minutes: int = 1):
 
         for number, alert in enumerate(
             alerts,
-            start=1
+            start=1,
         ):
 
             print()
+            print(f"    ALERT #{number}")
+
             print(
-                f"    ALERT #{number}"
+                f"    Type:     {alert.attack_type}"
             )
+
             print(
-                f"    Type:     {alert.alert_type}"
+                f"    Category: {alert.category}"
             )
+
             print(
                 f"    Severity: {alert.severity}"
             )
 
+            print(
+                f"    Confidence: {alert.confidence}"
+            )
+
             if alert.description:
                 print(
-                    f"    Details:  "
-                    f"{alert.description}"
+                    f"    Details:  {alert.description}"
                 )
 
-            # Display additional alert context
-            # without assuming every alert has the
-            # same fields.
             context = alert.model_dump(
                 exclude_none=True
             )
 
-            context.pop("alert_type", None)
-            context.pop("severity", None)
-            context.pop("description", None)
+            context.pop(
+                "attack_type",
+                None,
+            )
+
+            context.pop(
+                "category",
+                None,
+            )
+
+            context.pop(
+                "severity",
+                None,
+            )
+
+            context.pop(
+                "confidence",
+                None,
+            )
+
+            context.pop(
+                "description",
+                None,
+            )
 
             for key, value in context.items():
 
@@ -157,7 +164,7 @@ def run_soc_pipeline(minutes: int = 1):
             print("-" * 60)
 
     # ---------------------------------------------------------
-    # 6. Final SOC summary
+    # 6. SOC summary
     # ---------------------------------------------------------
 
     print()
@@ -182,5 +189,4 @@ def run_soc_pipeline(minutes: int = 1):
 
 
 if __name__ == "__main__":
-
     run_soc_pipeline(minutes=1)
